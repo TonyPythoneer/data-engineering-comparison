@@ -37,6 +37,19 @@ FILTER_HUMIDITY_MAX = 80.0  # AND humidity < 80
 # Float rounding for FP-stable equivalence comparison across engines.
 ROUND_DECIMALS = 6
 
+# Display order for report tables and charts: engines first, then skill level.
+ENGINE_ORDER = ("numpy", "pandas", "polars", "duckdb")
+SKILL_ORDER = ("newbie", "pro")
+
+
+def case_sort_key(case: str) -> tuple[int, int]:
+    """Sort key for a ``"<engine>-<skill>"`` case name in display order."""
+    engine, skill = case.rsplit("-", 1)
+    engine_idx = ENGINE_ORDER.index(engine) if engine in ENGINE_ORDER else len(ENGINE_ORDER)
+    skill_idx = SKILL_ORDER.index(skill) if skill in SKILL_ORDER else len(SKILL_ORDER)
+    return (engine_idx, skill_idx)
+
+
 # The five logical pipeline steps plus the forced-materialization step.
 # Lazy engines (polars-pro, duckdb-pro) attribute almost all cost to
 # "materialize"; eager engines spread it across the transform steps. That

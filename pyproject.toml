@@ -4,11 +4,15 @@ version = "0.1.0"
 description = "Micro-benchmark comparing polars, numpy, and duckdb (newbie vs pro) on a small weather pipeline"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
+# Engine versions are pinned to major.minor so a library upgrade can't silently
+# change the benchmark results. The committed uv.lock pins the exact patch + hash
+# on top of this — run `uv sync` for a byte-identical environment.
 dependencies = [
-    "duckdb>=1.1.0",
-    "numpy>=2.1.0",
-    "polars>=1.20.0",
-    "psutil>=6.0.0",
+    "duckdb==1.5.*",
+    "numpy==2.4.*",
+    "pandas==3.0.*",
+    "polars==1.41.*",
+    "psutil==7.2.*",
 ]
 
 [build-system]

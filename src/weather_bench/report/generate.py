@@ -19,12 +19,11 @@ from pathlib import Path
 from weather_bench.bench import memory
 from weather_bench.bench.timing import ROUNDS_BY_SIZE, time_steps
 from weather_bench.common.data import generate_stations, generate_weather
-from weather_bench.common.schema import STEP_NAMES
+from weather_bench.common.schema import ENGINE_ORDER, STEP_NAMES, case_sort_key
 from weather_bench.engines.registry import all_pipelines, get_pipeline
 from weather_bench.report.charts import render_charts
 
 SIZES = (50, 500, 5000)
-ENGINES = ("polars", "numpy", "duckdb")
 RESULTS_DIR = Path("results")
 TIMING_JSON = RESULTS_DIR / "timing.json"
 REPORT_MD = RESULTS_DIR / "REPORT.md"
@@ -140,14 +139,14 @@ def _build_markdown(
     per_op: dict[str, dict[str, dict[str, float]]],
     per_op_size: int,
 ) -> str:
-    cases = sorted({case for (case, _size) in timing})
+    cases = sorted({case for (case, _size) in timing}, key=case_sort_key)
     lines: list[str] = []
     a = lines.append
 
-    a("# Benchmark Report — polars vs numpy vs duckdb\n")
+    a("# Benchmark Report — numpy vs pandas vs polars vs duckdb\n")
     a("Same 5-step weather pipeline (load → filter → groupby-agg → join → sort),")
     a("each engine in a **newbie** (naive) and **pro** (optimized) version.")
-    a("All six cases produce byte-identical output (equivalence gate passed).\n")
+    a(f"All {len(cases)} cases produce byte-identical output (equivalence gate passed).\n")
 
     # --- 1. Headline timing -------------------------------------------------
     a("## 1. Full-pipeline time — min µs (pytest-benchmark)\n")
@@ -162,7 +161,7 @@ def _build_markdown(
     a("## 2. Newbie → Pro speedup (×, higher = pro is faster)\n")
     a("| Engine | " + " | ".join(f"{s} rows" for s in SIZES) + " |")
     a("|--------|" + "|".join("---:" for _ in SIZES) + "|")
-    for engine in ENGINES:
+    for engine in ENGINE_ORDER:
         cells = []
         for s in SIZES:
             nb = timing[(_case(engine, "newbie"), s)]["min"]
@@ -209,9 +208,11 @@ def _build_markdown(
     a("## Measurement honesty\n")
     a("- **Tiny data (50–5k rows).** Many timings are sub-millisecond; differences")
     a("  can be within jitter. We report the **min** of many samples (most robust).")
-    a("- **Memory is overhead-dominated.** Import overhead (tens of MB) dwarfs a")
-    a("  few-hundred-KB dataset, so `data` deltas are small and noisy — the honest")
-    a("  result is that fixed cost dominates at this scale.")
+    a("- **Memory: import baseline vs first-use.** Each engine is measured in")
+    a("  isolation (only its own library imported; numpy is shared via the data")
+    a("  generator). The `baseline` is the import cost (numpy < duckdb < polars <")
+    a("  pandas); the `data` segment is the engine's first-use arena/buffer")
+    a("  allocation, not the few-hundred-KB dataset itself.")
     a("- **Lazy attribution.** polars-pro / duckdb-pro concentrate cost in")
     a("  `materialize`; per-op rows are ~0 by design, not by error.")
     a("- **Reproducible.** Seeded data; same seed → same numbers (modulo machine noise).")

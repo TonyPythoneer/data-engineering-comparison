@@ -14,6 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from weather_bench.common.schema import case_sort_key
+
 DOCS = Path("docs")
 
 # Stable colour per data size / segment.
@@ -39,7 +41,7 @@ def render_charts(
     import matplotlib.pyplot as plt
 
     out_dir.mkdir(exist_ok=True)
-    cases = sorted({case for (case, _size) in timing})
+    cases = sorted({case for (case, _size) in timing}, key=case_sort_key)
     _exec_chart(plt, timing, cases, sizes, out_dir / "exec_time.png")
     _memory_chart(plt, mem, cases, sizes[-1], out_dir / "memory.png")
     print(f"  ✓ charts: {out_dir}/exec_time.png, {out_dir}/memory.png")
@@ -88,7 +90,7 @@ def _memory_chart(
     ax.bar(x, baseline, label="import baseline (fixed)", color=_BASELINE_COLOR)
     ax.bar(x, data, bottom=baseline, label="data + compute", color=_DATA_COLOR)
     ax.set_ylabel("peak RSS (MB)")
-    ax.set_title(f"Peak memory at {size:,} rows — import overhead dominates")
+    ax.set_title(f"Peak memory at {size:,} rows — import baseline vs data+compute")
     ax.set_xticks(x)
     ax.set_xticklabels(cases, rotation=30, ha="right")
     ax.legend()

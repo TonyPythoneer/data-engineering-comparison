@@ -15,7 +15,7 @@ SIZES = (50, 500, 5000)
 CASES = sorted(all_pipelines())
 
 
-def test_all_six_cases_registered():
+def test_all_cases_registered():
     expected = {
         "polars-newbie",
         "polars-pro",
@@ -23,6 +23,8 @@ def test_all_six_cases_registered():
         "numpy-pro",
         "duckdb-newbie",
         "duckdb-pro",
+        "pandas-newbie",
+        "pandas-pro",
     }
     assert set(CASES) == expected
 

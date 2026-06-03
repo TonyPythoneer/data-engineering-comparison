@@ -50,7 +50,8 @@ The newbie↔pro delta per engine is a first-class output, not a side note.
 <!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
 
 - Docker / Celery / database / web layer — this is a pure benchmarking lib, not a web app (sibling django-thumbnail had these; we deliberately drop them)
-- Pandas and other engines — scope is exactly the three requested (polars, numpy, duckdb); adding more dilutes the comparison
+- ~~Pandas~~ — originally excluded, but **added later by user request** as a 4th engine (newbie + pro), giving 8 cases. Display order: numpy, pandas, polars, duckdb.
+- Other engines beyond the four (numpy, pandas, polars, duckdb) — adding more dilutes the comparison
 - Large-scale / big-data datasets — deliberately small (≤5k rows) for understandability and fast runs; honest tradeoff is that small sizes make differences subtle (see Constraints)
 - Real downloaded weather data (NOAA/Open-Meteo) — synthetic chosen for reproducibility and zero-download
 

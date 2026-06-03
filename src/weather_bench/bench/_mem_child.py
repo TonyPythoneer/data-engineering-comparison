@@ -25,9 +25,13 @@ def main() -> None:
     case, size, mode = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 
     from weather_bench.common.data import generate_stations, generate_weather
-    from weather_bench.engines.registry import get_pipeline
+    from weather_bench.engines.registry import factory_for
 
-    pipeline = get_pipeline(case)  # forces the engine library import (polars/...)
+    # Import ONLY this case's engine (not the whole registry) so peak RSS
+    # reflects this engine's standalone footprint, not all engines at once.
+    # numpy is always present — the data generator uses it — so it is the
+    # shared baseline every engine is measured on top of.
+    pipeline = factory_for(case)()
     generate_stations()
 
     if mode == "full":

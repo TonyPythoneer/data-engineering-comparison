@@ -1,23 +1,23 @@
 # data-engineering-comparison
 
 A small, reproducible **micro-benchmark** that runs the *same* 5-step weather
-pipeline through three engines — **polars**, **numpy**, **duckdb** — each written
-twice: a **newbie** (naive) version and a **pro** (optimized) version. It measures
-**time** and **peak memory**, and reports both *which engine* is faster and
-*how much the way you use it* matters.
+pipeline through four engines — **numpy**, **pandas**, **polars**, **duckdb** —
+each written twice: a **newbie** (naive) version and a **pro** (optimized)
+version. It measures **time** and **peak memory**, and reports both *which
+engine* is faster and *how much the way you use it* matters.
 
-> 6 cases = 3 engines × {newbie, pro}. All six produce **byte-identical** output
-> (enforced by an equivalence gate) so the comparison is fair.
+> 8 cases = 4 engines × {newbie, pro}. All eight produce **byte-identical**
+> output (enforced by an equivalence gate) so the comparison is fair.
 
 ![Full-pipeline execution time](docs/exec_time.png)
 
 *Full-pipeline time, log scale (Apple Silicon). numpy wins at this tiny scale;
-how you use each tool (newbie → pro) often matters more than which tool. Full
-tables, memory chart, and caveats below.*
+polars clearly beats pandas; how you use each tool (newbie → pro) often matters
+as much as which tool. Full tables, memory chart, and caveats below.*
 
 ## The pipeline
 
-Identical semantics across all six cases, on a seeded synthetic weather dataset
+Identical semantics across all eight cases, on a seeded synthetic weather dataset
 (`station_id, date, temperature, humidity, precipitation, wind_speed`) joined to a
 small station dimension:
 
@@ -30,27 +30,46 @@ Data sizes: **50 / 500 / 5 000** rows.
 ## Quick start
 
 ```bash
-make sync     # install deps (uv, Python 3.13)
+make sync     # install the exact locked deps (uv, Python 3.13)
 make test     # correctness + cross-engine equivalence gate
-make bench    # run all benchmarks and write results/REPORT.md
+make bench    # run all benchmarks, regenerate charts + results/REPORT.md
 make check    # ruff + format + pyrefly
 make fix      # auto-fix lint/format
 ```
+
+## Reproducibility
+
+Results should not drift because a library shipped a new release:
+
+- **Engines pinned to major.minor** in `pyproject.toml` (`numpy==2.4.*`,
+  `pandas==3.0.*`, `polars==1.41.*`, `duckdb==1.5.*`, `psutil==7.2.*`).
+- **`uv.lock` is committed** — it pins the *exact* patch version + hash of every
+  dependency. `make sync` reproduces a byte-identical environment.
+- **Data is seeded** — same seed → same rows.
+
+**Tested with** (Python **3.13.11**):
+
+| numpy | pandas | polars | duckdb | psutil | pytest-benchmark |
+|------:|-------:|-------:|-------:|-------:|-----------------:|
+| 2.4.6 | 3.0.3  | 1.41.2 | 1.5.3  | 7.2.2  | 5.2.3            |
+
+> Python is pinned to **3.13** (`>=3.13,<3.14`): polars has no cp314 wheel yet.
 
 ## How it works (honest measurement)
 
 - **Time** — `pytest-benchmark` (serial, `-p no:xdist`) for the headline
   full-pipeline number; an in-process per-op breakdown for the step view.
 - **Memory** — peak RSS via `resource.getrusage` in an **isolated subprocess**
-  per case, with the import-only **baseline subtracted** to expose the data-only
-  footprint. (`tracemalloc` is *not* used — it misses C-level allocations.)
+  per case (only that engine's library is imported; numpy is shared because the
+  data generator uses it). The import-only **baseline is subtracted** to separate
+  fixed import cost from the engine's first-use allocation. (`tracemalloc` is
+  *not* used — it misses C-level allocations.)
 - Timing and memory run as **separate paths** (benchmark loops would inflate RSS).
-- **Python 3.13** is pinned: polars has no cp314 wheel yet.
 
-### Reading the report
+## Results
 
-`make bench` writes `results/REPORT.md` and the two charts below. Snapshot from
-one run (Apple Silicon, min of many samples — your absolute numbers will differ).
+Snapshot from one run (Apple Silicon, min of many samples — absolute numbers
+differ per machine; regenerate with `make bench`).
 
 ### Execution time
 
@@ -60,20 +79,23 @@ one run (Apple Silicon, min of many samples — your absolute numbers will diffe
 
 | Case | 50 | 500 | 5 000 |
 |------|---:|---:|---:|
-| numpy-pro | 40.4 | 94.5 | 598.4 |
-| numpy-newbie | 34.2 | 225.4 | 2,201.7 |
-| polars-pro | 344.5 | 377.3 | 952.5 |
-| polars-newbie | 475.4 | 508.8 | 1,185.7 |
-| duckdb-pro | 10,323 | 34,048 | 279,318 |
-| duckdb-newbie | 51,927 | 396,469 | 3,904,522 |
+| numpy-newbie | 34.4 | 226.2 | 2,216.3 |
+| numpy-pro | 40.6 | 94.8 | 600.2 |
+| pandas-newbie | 2,991.8 | 3,985.5 | 5,377.5 |
+| pandas-pro | 2,647.0 | 2,767.3 | 4,174.7 |
+| polars-newbie | 514.8 | 527.3 | 1,213.1 |
+| polars-pro | 345.0 | 378.0 | 939.7 |
+| duckdb-newbie | 17,310 | 94,653 | 837,688 |
+| duckdb-pro | 10,746 | 34,205 | 295,531 |
 
 **Newbie → Pro speedup (×)**
 
 | Engine | 50 | 500 | 5 000 |
 |--------|---:|---:|---:|
-| polars | 1.4× | 1.3× | 1.2× |
 | numpy | 0.8× | 2.4× | 3.7× |
-| duckdb | 5.0× | 11.6× | 14.0× |
+| pandas | 1.1× | 1.4× | 1.3× |
+| polars | 1.5× | 1.4× | 1.3× |
+| duckdb | 1.6× | 2.8× | 2.8× |
 
 ### Memory use
 
@@ -83,47 +105,51 @@ one run (Apple Silicon, min of many samples — your absolute numbers will diffe
 
 | Case | 50 | 500 | 5 000 |
 |------|---:|---:|---:|
-| numpy-newbie | 81.1 / 0.3 | 80.8 / 0.0 | 81.9 / 1.1 |
-| numpy-pro | 81.1 / 0.3 | 81.4 / 0.6 | 81.7 / 0.9 |
-| polars-newbie | 92.9 / 11.5 | 93.2 / 11.8 | 99.7 / 18.4 |
-| polars-pro | 93.0 / 12.1 | 93.5 / 12.5 | 100.1 / 19.1 |
-| duckdb-newbie | 90.7 / 9.7 | 91.4 / 10.3 | 94.1 / 13.0 |
-| duckdb-pro | 97.0 / 15.9 | 100.1 / 19.1 | 132.5 / 51.5 |
+| numpy-newbie | 31.9 / 0.1 | 32.0 / 0.1 | 32.8 / 1.0 |
+| numpy-pro | 32.1 / 0.5 | 32.3 / 0.7 | 33.1 / 1.5 |
+| pandas-newbie | 67.1 / 1.1 | 67.2 / 1.3 | 68.5 / 2.5 |
+| pandas-pro | 67.8 / 1.8 | 67.9 / 1.9 | 68.5 / 2.5 |
+| polars-newbie | 72.8 / 11.8 | 73.2 / 12.2 | 80.2 / 19.1 |
+| polars-pro | 73.3 / 12.2 | 73.4 / 12.3 | 80.5 / 19.4 |
+| duckdb-newbie | 94.1 / 41.8 | 94.3 / 42.0 | 98.0 / 45.6 |
+| duckdb-pro | 68.1 / 15.5 | 71.9 / 19.4 | 105.7 / 53.2 |
 
 ### What this run shows (and the caveats that matter)
 
-- **At tiny scale, numpy wins on raw speed** — it's just in-memory arrays with no
-  query-engine overhead. duckdb's absolute numbers are dominated by setup cost
-  (the newbie version inserts rows one-by-one — an authentic beginner mistake).
-- **"How you use it" is a real axis.** The newbie→pro speedup (up to 14× for
-  duckdb here) is often larger than the gap *between* engines.
-- **Memory is overhead-dominated.** The ~80 MB grey baseline (Python + numpy +
-  interpreter) is essentially the same for every engine. polars and duckdb
-  allocate their engine arenas/buffers on *first use*, which lands in the red
-  `data` segment (12–50 MB); numpy's data footprint is ~1 MB. So numpy is the
-  lightest by far, but most of the *total* is fixed cost, not the dataset
-  (which is only hundreds of KB at 5 000 rows).
+- **At tiny scale, numpy wins on both speed and memory** — bare in-memory arrays,
+  no query-engine overhead, ~32 MB resident.
+- **polars clearly beats pandas** (its real competitor) at every size here —
+  ~4× faster at 5 000 rows — while using a bit more memory.
+- **"How you use it" is a real axis.** The newbie→pro speedup (up to ~3.7× for
+  numpy, ~2.8× for duckdb) is often comparable to the gap *between* engines.
+- **Import cost differs by engine.** The grey baseline grows numpy (~32 MB) <
+  duckdb (~52) < polars (~61) < pandas (~66). The red `data` segment is each
+  engine's first-use arena/buffer allocation (duckdb's step-by-step temp tables
+  cost the most), *not* the few-hundred-KB dataset.
 - **Time ≠ memory.** duckdb-**pro** is faster than duckdb-newbie yet uses *more*
-  memory (single big vectorized query vs small step-by-step temp tables) — the
-  two axes are independent.
-- **Differences at 50–5 000 rows can be within noise.** Treat small deltas as
-  indicative; the report spells out the honesty caveats.
+  memory at 5 000 rows (one big vectorized query vs small step-by-step temp
+  tables) — the two axes are independent.
+- **Small-data noise.** Many timings are sub-millisecond and some (notably
+  duckdb-newbie's row-by-row inserts) vary run-to-run; treat absolute values as
+  indicative and trust the ordering, not the third digit.
 
-> ⚠️ Scope note: polars vs numpy is a *query engine* vs a *numerical array
-> library*. numpy wins here because the pipeline is tiny; polars is built to win
-> on **large relational** workloads (joins / group-bys over millions of rows).
-> For simple element-wise math, numpy can stay ahead even at large sizes. The
-> 50k–millions crossover is deferred to v2.
+> ⚠️ Scope note: this compares a *query engine* (polars/duckdb) vs *array/frame
+> libraries* (numpy/pandas) on a **tiny relational** pipeline. numpy wins here
+> because the data is small; polars/duckdb are built to win on **large
+> relational** workloads (joins / group-bys over millions of rows). For simple
+> element-wise math, numpy can stay ahead even at large sizes. The 50k–millions
+> crossover is deferred to v2.
 
 ## Project layout
 
 ```
 src/weather_bench/
   common/   schema.py · data.py (seeded generator) · contract.py (PipelineProtocol)
-  engines/  polars_{newbie,pro}.py · numpy_{newbie,pro}.py · duckdb_{newbie,pro}.py · registry.py
-  bench/    timing.py (per-op) · memory.py + _mem_child.py (subprocess RSS)
-  report/   generate.py  (make bench entry point)
+  engines/  numpy_{newbie,pro}.py · pandas_{newbie,pro}.py · polars_{newbie,pro}.py
+            duckdb_{newbie,pro}.py · registry.py
+  bench/    timing.py (per-op) · memory.py + _mem_child.py (isolated subprocess RSS)
+  report/   generate.py (make bench entry point) · charts.py (PNGs in docs/)
 tests/      test_data.py · test_equivalence.py · benchmarks/test_timing.py
 ```
 
-Built with [GSD](https://github.com/) planning: see `.planning/` (local-only).
+Built with GSD planning (`.planning/`, local-only).
