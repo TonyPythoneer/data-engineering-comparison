@@ -9,6 +9,12 @@ twice: a **newbie** (naive) version and a **pro** (optimized) version. It measur
 > 6 cases = 3 engines × {newbie, pro}. All six produce **byte-identical** output
 > (enforced by an equivalence gate) so the comparison is fair.
 
+![Full-pipeline execution time](docs/exec_time.png)
+
+*Full-pipeline time, log scale (Apple Silicon). numpy wins at this tiny scale;
+how you use each tool (newbie → pro) often matters more than which tool. Full
+tables, memory chart, and caveats below.*
+
 ## The pipeline
 
 Identical semantics across all six cases, on a seeded synthetic weather dataset
