@@ -1,0 +1,5 @@
+project-includes = [
+    "src/weather_bench",
+    "tests",
+]
+python-version = "3.13.11"
