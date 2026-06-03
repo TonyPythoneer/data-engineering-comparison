@@ -35,3 +35,9 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# GSD planning docs (local-only)
+.planning/
+
+# Generated benchmark artifacts
+results/
