@@ -21,6 +21,7 @@ from weather_bench.bench.timing import ROUNDS_BY_SIZE, time_steps
 from weather_bench.common.data import generate_stations, generate_weather
 from weather_bench.common.schema import STEP_NAMES
 from weather_bench.engines.registry import all_pipelines, get_pipeline
+from weather_bench.report.charts import render_charts
 
 SIZES = (50, 500, 5000)
 ENGINES = ("polars", "numpy", "duckdb")
@@ -225,6 +226,10 @@ def main() -> None:
     mem = _measure_memory()
     per_op_size = SIZES[-1]
     per_op = _measure_per_op(per_op_size)
+
+    print("→ charts ...", flush=True)
+    render_charts(timing, mem, SIZES)
+    print(flush=True)
 
     markdown = _build_markdown(timing, mem, per_op, per_op_size)
     REPORT_MD.write_text(markdown)

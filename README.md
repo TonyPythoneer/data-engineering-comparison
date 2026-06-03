@@ -43,38 +43,71 @@ make fix      # auto-fix lint/format
 
 ### Reading the report
 
-`make bench` writes `results/REPORT.md`. Snapshot from one run (Apple Silicon,
-min of many samples — your absolute numbers will differ):
+`make bench` writes `results/REPORT.md` and the two charts below. Snapshot from
+one run (Apple Silicon, min of many samples — your absolute numbers will differ).
+
+### Execution time
+
+![Full-pipeline execution time](docs/exec_time.png)
 
 **Full-pipeline time — min µs**
 
 | Case | 50 | 500 | 5 000 |
 |------|---:|---:|---:|
-| numpy-pro | 40.5 | 94.6 | 600.0 |
-| numpy-newbie | 34.3 | 226.7 | 2,211.2 |
-| polars-pro | 337.5 | 372.9 | 957.3 |
-| polars-newbie | 497.1 | 516.2 | 1,142.3 |
-| duckdb-pro | 10,315 | 33,189 | 273,092 |
-| duckdb-newbie | 51,398 | 421,662 | 3,821,697 |
+| numpy-pro | 40.4 | 94.5 | 598.4 |
+| numpy-newbie | 34.2 | 225.4 | 2,201.7 |
+| polars-pro | 344.5 | 377.3 | 952.5 |
+| polars-newbie | 475.4 | 508.8 | 1,185.7 |
+| duckdb-pro | 10,323 | 34,048 | 279,318 |
+| duckdb-newbie | 51,927 | 396,469 | 3,904,522 |
 
 **Newbie → Pro speedup (×)**
 
 | Engine | 50 | 500 | 5 000 |
 |--------|---:|---:|---:|
-| polars | 1.5× | 1.4× | 1.2× |
+| polars | 1.4× | 1.3× | 1.2× |
 | numpy | 0.8× | 2.4× | 3.7× |
-| duckdb | 5.0× | 12.7× | 14.0× |
+| duckdb | 5.0× | 11.6× | 14.0× |
 
-What this particular run shows (and the caveats that matter):
+### Memory use
+
+![Peak memory: import baseline vs data](docs/memory.png)
+
+**Peak RSS — MB (`total` / `data`, where `data` = total − import baseline)**
+
+| Case | 50 | 500 | 5 000 |
+|------|---:|---:|---:|
+| numpy-newbie | 81.1 / 0.3 | 80.8 / 0.0 | 81.9 / 1.1 |
+| numpy-pro | 81.1 / 0.3 | 81.4 / 0.6 | 81.7 / 0.9 |
+| polars-newbie | 92.9 / 11.5 | 93.2 / 11.8 | 99.7 / 18.4 |
+| polars-pro | 93.0 / 12.1 | 93.5 / 12.5 | 100.1 / 19.1 |
+| duckdb-newbie | 90.7 / 9.7 | 91.4 / 10.3 | 94.1 / 13.0 |
+| duckdb-pro | 97.0 / 15.9 | 100.1 / 19.1 | 132.5 / 51.5 |
+
+### What this run shows (and the caveats that matter)
 
 - **At tiny scale, numpy wins on raw speed** — it's just in-memory arrays with no
-  query engine overhead. duckdb's absolute numbers are dominated by setup cost
+  query-engine overhead. duckdb's absolute numbers are dominated by setup cost
   (the newbie version inserts rows one-by-one — an authentic beginner mistake).
 - **"How you use it" is a real axis.** The newbie→pro speedup (up to 14× for
   duckdb here) is often larger than the gap *between* engines.
-- **Differences at 50–5 000 rows can be within noise**, and **memory is dominated
-  by fixed import overhead** (tens of MB) — the dataset is only hundreds of KB.
-  The report states these caveats explicitly; treat small deltas as indicative.
+- **Memory is overhead-dominated.** The ~80 MB grey baseline (Python + numpy +
+  interpreter) is essentially the same for every engine. polars and duckdb
+  allocate their engine arenas/buffers on *first use*, which lands in the red
+  `data` segment (12–50 MB); numpy's data footprint is ~1 MB. So numpy is the
+  lightest by far, but most of the *total* is fixed cost, not the dataset
+  (which is only hundreds of KB at 5 000 rows).
+- **Time ≠ memory.** duckdb-**pro** is faster than duckdb-newbie yet uses *more*
+  memory (single big vectorized query vs small step-by-step temp tables) — the
+  two axes are independent.
+- **Differences at 50–5 000 rows can be within noise.** Treat small deltas as
+  indicative; the report spells out the honesty caveats.
+
+> ⚠️ Scope note: polars vs numpy is a *query engine* vs a *numerical array
+> library*. numpy wins here because the pipeline is tiny; polars is built to win
+> on **large relational** workloads (joins / group-bys over millions of rows).
+> For simple element-wise math, numpy can stay ahead even at large sizes. The
+> 50k–millions crossover is deferred to v2.
 
 ## Project layout
 
