@@ -55,17 +55,15 @@ class PolarsProPipeline:
         return state.sort(by=["total_precip", "station_id"], descending=[True, False])
 
     def materialize(self, state: pl.LazyFrame) -> CanonicalResult:
-        df = state.collect()
-        rows = [
-            (
-                r["station_id"],
-                r["station_name"],
-                r["climate_zone"],
-                r["mean_temp"],
-                r["max_humidity"],
-                r["total_precip"],
-                r["n"],
-            )
-            for r in df.iter_rows(named=True)
-        ]
-        return normalize(rows)
+        # Select into RESULT_COLUMNS order, then extract tuples directly with
+        # .rows() — avoids building a Python dict per row (iter_rows(named=True)).
+        df = state.collect().select(
+            "station_id",
+            "station_name",
+            "climate_zone",
+            "mean_temp",
+            "max_humidity",
+            "total_precip",
+            "n",
+        )
+        return normalize(df.rows())
