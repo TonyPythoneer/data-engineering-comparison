@@ -39,7 +39,8 @@ select = ["E", "W", "F", "I", "UP", "B", "SIM", "ANN"]
 
 [tool.pytest.ini_options]
 # pytest-benchmark is invalid under xdist parallelism — force serial.
-addopts = ["-ra", "-p", "no:xdist"]
+# Benchmarks are excluded from the default run; `make bench` runs them explicitly.
+addopts = ["-ra", "-p", "no:xdist", "-m", "not benchmark"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

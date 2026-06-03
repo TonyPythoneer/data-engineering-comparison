@@ -38,3 +38,6 @@ htmlcov/
 
 # GSD planning docs (local-only)
 .planning/
+
+# Generated benchmark artifacts
+results/
